@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Push Docker Image to ACR
 
 on: 
   workflow_dispatch:
@@ -19,6 +19,11 @@ on:
         options:
           - 'true'
           - 'false'
+      vmIP:
+        description: 'Target VM IP'
+        required: true
+        type: string
+
   push:
     branches:
       - main
@@ -40,8 +45,21 @@ jobs:
           password: ${{ secrets.AZURE_ACR_PASSWORD }}
 
       - name: Build and Push Docker Image
+        id: build-push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}/nodejs-hi-app:${{ github.sha }}
+
+      - name: Deploy to VM
+        if: ${{ github.event.inputs.runDeploy == 'true' }}
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ github.event.inputs.vmIP }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd deployment
+            sed -i "s|image:.*|image: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}/nodejs-hi-app:${{ github.sha }}|" hi-deploy.yaml
+            kubectl apply -f hi-deploy.yaml
