@@ -118,8 +118,7 @@ jobs:
       - name: Set Final Image Name
         id: set-image-name
         run: |
-          echo "full_image_name=poc132.azurecr.io/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
-
+          echo "full_image_name=poc132.azurecr.io/github/poc:v1.${{ github.run_number }}" >> $GITHUB_OUTPUT
   trivy-scan:
     needs: docker
     if: ${{ github.event_name == 'push' || (github.event.inputs.TrivyScan == 'true') }}
