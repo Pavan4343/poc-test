@@ -118,7 +118,7 @@ jobs:
     if: github.event.inputs.TrivyScan == 'true'
     runs-on: ubuntu-latest
     env:
-      registry: ${{ secrets.AZURE_ACR_NAME }}.azurecr.io
+      registry: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}
     steps:
       - name: Install Trivy
         run: |
@@ -129,7 +129,7 @@ jobs:
           sudo apt-get install trivy -y
 
       - name: Trivy Image Scan
-        run: trivy image ${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
+        run: trivy image ${{ secrets.AZURE_ACR_LOGIN_SERVER }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
 
   deploy:
     needs: [docker, trivy-scan]
@@ -141,7 +141,7 @@ jobs:
       - name: Set Environment Variables
         id: vars
         run: |
-          echo "image_url=${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "image_url=${{ secrets.AZURE_ACR_LOGIN_SERVER }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
           echo "branch_name=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
 
       - name: Determine Environment
