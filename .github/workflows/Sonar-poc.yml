@@ -85,7 +85,7 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   docker:
-    needs: build
+    needs: [build , sonar-test]
     runs-on: ubuntu-latest
     outputs:
       full-image-name: ${{ steps.set-image-name.outputs.full_image_name }}
