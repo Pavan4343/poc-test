@@ -12,7 +12,7 @@ on:
     inputs:
       SonarQubeScan:
         description: 'Run SonarQube Scan'
-        default: 'false'
+        default: 'true'
         type: choice
         options: ['true', 'false']
       TrivyScan:
@@ -64,6 +64,7 @@ jobs:
     if: github.event.inputs.SonarQubeScan == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Install Dependencies
         run: npm install
 
