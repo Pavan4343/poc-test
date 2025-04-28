@@ -80,7 +80,7 @@ jobs:
             -Dsonar.projectKey=Pavan4343 \
             -Dsonar.sources=. \
             -Dsonar.host.url=${{ secrets.SONAR_HOST }} \
-            -Dsonar.login=${SONAR_TOKEN}
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   docker:
     needs: [build, sonar-test]
