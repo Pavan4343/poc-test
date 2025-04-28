@@ -1,14 +1,15 @@
 {
   "name": "hi-app",
   "version": "1.0.0",
+  "description": "Simple Node.js Express Application",
   "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "build": "echo \"Build step skipped. Nothing to build.\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "express": "^5.1.0"
   }
