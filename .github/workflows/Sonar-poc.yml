@@ -111,7 +111,7 @@ jobs:
           file: ${{ env.dockerFile }}
           push: true
           tags: |
-            ${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
+            ${{ secrets.AZURE_ACR_LOGIN_SERVER }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
 
   trivy-scan:
     needs: docker
