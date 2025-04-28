@@ -115,7 +115,7 @@ jobs:
 
   trivy-scan:
     needs: docker
-    if: github.event.inputs.TrivyScan == 'true'
+    if: ${{ github.event_name == 'push' || (github.event.inputs.TrivyScan == 'true') }}
     runs-on: ubuntu-latest
     env:
       registry: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}
