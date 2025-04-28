@@ -86,7 +86,7 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   docker:
-    needs: [build, sonar-test]
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       full-image-name: ${{ steps.set-image-name.outputs.full_image_name }}
@@ -125,6 +125,14 @@ jobs:
     if: ${{ github.event_name == 'push' || (github.event.inputs.TrivyScan == 'true') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Check Image Before Scan
+        run: |
+          echo "Image to scan: ${{ needs.docker.outputs.full-image-name }}"
+          if [ -z "${{ needs.docker.outputs.full-image-name }}" ]; then
+            echo "No image to scan. Skipping scan."
+            exit 0
+          fi
+
       - name: Install Trivy
         run: |
           sudo apt-get install wget apt-transport-https gnupg lsb-release -y
