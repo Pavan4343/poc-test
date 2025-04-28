@@ -86,7 +86,7 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   docker:
-    needs: build
+    needs: [build , sonar-test]
     runs-on: ubuntu-latest
     outputs:
       full-image-name: ${{ steps.set-image-name.outputs.full_image_name }}
@@ -118,7 +118,7 @@ jobs:
       - name: Set Final Image Name
         id: set-image-name
         run: |
-          echo "full_image_name=${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "full_image_name=${{ secrets.AZURE_ACR_LOGIN_SERVER }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
 
   trivy-scan:
     needs: docker
