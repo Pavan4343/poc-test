@@ -25,6 +25,10 @@ on:
         default: 'false'
         type: choice
         options: ['true', 'false']
+      vmIP:
+          description: 'Target VM IP'
+          required: true
+          type: string
 
 env:
   imageName: github/poc
@@ -144,7 +148,7 @@ jobs:
 
   deploy:
     needs: [docker, trivy-scan]
-    if: ${{ github.event.inputs.Deployment == 'true' }}
+    if: ${{ github.event_name == 'push' || (github.event.inputs.Deployment == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Set Environment Variables
@@ -164,8 +168,13 @@ jobs:
           else
             echo "env_scope=Dev" >> $GITHUB_OUTPUT
 
-      - name: Deploy to Kubernetes or VM
-        run: |
-          echo "Deploying image: ${{ steps.vars.outputs.image_url }}"
-          echo "Environment: ${{ steps.env.outputs.env_scope }}"
-          # ./scripts/deploy.sh "${{ steps.vars.outputs.image_url }}" "${{ steps.env.outputs.env_scope }}"
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ github.event.inputs.vmIP }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd deployment
+            sed -i "s|image:.*|image: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}/nodejs-hi-app:${{ github.sha }}|" hi-deploy.yaml
+            kubectl apply -f hi-deploy.yaml
