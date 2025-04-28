@@ -71,18 +71,17 @@ jobs:
       - name: Run Tests with Coverage
         run: npm test -- --coverage
 
-        - name: SonarQube Scan
+      - name: SonarQube Scan
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          npm install -g sonarqube-scanner
-          sonar-scanner \
+            npm install -g sonarqube-scanner
+            sonar-scanner \
             -Dsonar.projectKey=Pavan4343_poc-2 \
             -Dsonar.organization=pavan4343 \
             -Dsonar.sources=. \
             -Dsonar.host.url=${{ secrets.SONAR_HOST }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-      
 
   docker:
     needs: [build, sonar-test]
