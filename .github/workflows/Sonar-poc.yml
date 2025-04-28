@@ -1,0 +1,168 @@
+name: POC-test NodeJS Application
+
+on:
+  push:
+    branches:
+      - main
+      - 'releases/**/staging'
+      - 'releases/**/stable'
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+    inputs:
+      SonarQubeScan:
+        description: 'Run SonarQube Scan'
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      TrivyScan:
+        description: 'Run Trivy Scan'
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      Deployment:
+        description: 'Run Deployment'
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+
+env:
+  imageName: genix/poc
+  dockerFile: node-hi-app/Dockerfile
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.gen-tag.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install Dependencies
+        run: |
+          cd node-hi-app
+          npm install
+
+      - name: Run Build
+        run: |
+          cd node-hi-app
+          npm run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildOutputDirectory
+          path: node-hi-app/
+
+      - name: Generate Docker Tag
+        id: gen-tag
+        run: echo "image_tag=v1.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+  sonar-test:
+    needs: build
+    if: github.event.inputs.SonarQubeScan == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          cd node-hi-app
+          npm install
+
+      - name: Run Tests with Coverage
+        run: |
+          cd node-hi-app
+          npm test -- --coverage
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          npm install -g sonarqube-scanner
+          cd node-hi-app
+          sonar-scanner \
+            -Dsonar.projectKey=nodejs-app \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST }} \
+            -Dsonar.login=${SONAR_TOKEN}
+
+  docker:
+    needs: [build, sonar-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: buildOutputDirectory
+          path: .
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.AZURE_ACR_LOGIN_SERVER }}
+          username: ${{ secrets.AZURE_ACR_USERNAME }}
+          password: ${{ secrets.AZURE_ACR_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: node-hi-app/.
+          file: node-hi-app/Dockerfile
+          push: true
+          tags: |
+            ${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
+
+  trivy-scan:
+    needs: docker
+    if: github.event.inputs.TrivyScan == 'true'
+    runs-on: ubuntu-latest
+    env:
+      registry: ${{ secrets.AZURE_ACR_NAME }}.azurecr.io
+    steps:
+      - name: Install Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+
+      - name: Trivy Image Scan
+        run: trivy image ${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
+
+  deploy:
+    needs: [docker, trivy-scan]
+    if: github.event.inputs.Deployment == 'true'
+    runs-on: ubuntu-latest
+    env:
+      registry: ${{ secrets.AZURE_ACR_NAME }}.azurecr.io
+    steps:
+      - name: Set Environment Variables
+        id: vars
+        run: |
+          echo "image_url=${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "branch_name=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      - name: Determine Environment
+        id: env
+        run: |
+          branch="${{ steps.vars.outputs.branch_name }}"
+          if [[ "$branch" == "staging" ]]; then
+            echo "env_scope=Stage" >> $GITHUB_OUTPUT
+          elif [[ "$branch" == "stable" ]]; then
+            echo "env_scope=Stable" >> $GITHUB_OUTPUT
+          else
+            echo "env_scope=Dev" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Kubernetes or VM
+        run: |
+          echo "Deploying image: ${{ steps.vars.outputs.image_url }}"
+          echo "Environment: ${{ steps.env.outputs.env_scope }}"
+          # Example deployment logic
+          # ./scripts/deploy.sh "${{ steps.vars.outputs.image_url }}" "${{ steps.env.outputs.env_scope }}"
