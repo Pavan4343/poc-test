@@ -27,7 +27,7 @@ on:
         options: ['true', 'false']
 
 env:
-  imageName: genix/poc
+  imageName: github/poc
   dockerFile: Dockerfile
 
 jobs:
