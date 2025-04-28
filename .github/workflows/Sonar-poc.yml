@@ -29,7 +29,7 @@ on:
 env:
   imageName: github/poc
   dockerFile: Dockerfile
-  registry: ${{ secrets.AZURE_ACR_NAME }}.azurecr.io
+  registry: ${{ vars.AZURE_ACR_LOGIN_SERVER}}
 
 jobs:
   build:
@@ -118,7 +118,7 @@ jobs:
       - name: Set Final Image Name
         id: set-image-name
         run: |
-          echo "full_image_name=${{ secrets.AZURE_ACR_LOGIN_SERVER }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "full_image_name=${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
 
   trivy-scan:
     needs: docker
