@@ -29,7 +29,7 @@ on:
 env:
   imageName: github/poc
   dockerFile: Dockerfile
-  registry: ${{ vars.AZURE_ACR_LOGIN_SERVER}}
+  registryName: poc132.azurecr.io   # <-- Hardcoded registry name directly here (no secret masking)
 
 jobs:
   build:
@@ -86,7 +86,7 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   docker:
-    needs: [build , sonar-test]
+    needs: [build, sonar-test]
     runs-on: ubuntu-latest
     outputs:
       full-image-name: ${{ steps.set-image-name.outputs.full_image_name }}
@@ -102,7 +102,7 @@ jobs:
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v2
         with:
-          registry: ${{ env.registry }}
+          registry: ${{ env.registryName }}
           username: ${{ secrets.AZURE_ACR_USERNAME }}
           password: ${{ secrets.AZURE_ACR_PASSWORD }}
 
@@ -113,26 +113,19 @@ jobs:
           file: ${{ env.dockerFile }}
           push: true
           tags: |
-            ${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
+            ${{ env.registryName }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}
 
       - name: Set Final Image Name
         id: set-image-name
         run: |
-          echo "full_image_name=${{ env.registry }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "full_image_name=${{ env.registryName }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "Final Image Name: ${{ env.registryName }}/${{ env.imageName }}:${{ needs.build.outputs.image-tag }}"   # Visible in logs!
 
   trivy-scan:
     needs: docker
     if: ${{ github.event_name == 'push' || (github.event.inputs.TrivyScan == 'true') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check Image Before Scan
-        run: |
-          echo "Image to scan: ${{ needs.docker.outputs.full-image-name }}"
-          if [ -z "${{ needs.docker.outputs.full-image-name }}" ]; then
-            echo "No image to scan. Skipping scan."
-            exit 0
-          fi
-
       - name: Install Trivy
         run: |
           sudo apt-get install wget apt-transport-https gnupg lsb-release -y
@@ -172,5 +165,4 @@ jobs:
         run: |
           echo "Deploying image: ${{ steps.vars.outputs.image_url }}"
           echo "Environment: ${{ steps.env.outputs.env_scope }}"
-          # Example deploy command:
           # ./scripts/deploy.sh "${{ steps.vars.outputs.image_url }}" "${{ steps.env.outputs.env_scope }}"
